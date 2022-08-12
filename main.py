@@ -9,6 +9,8 @@ db: List[User] = [
         User(id=uuid4(),fname='ilmaan',lname='zia',gender=Gender.male,roles=[Role.admin]),
         User(id=uuid4(),fname='sahiba',lname='kaur',gender=Gender.female,roles=[Role.user])
         ]
+
+        
 @app.get("/")
 async def root():
     return {"message": "BALe Hello World"}
