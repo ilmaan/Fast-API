@@ -1,5 +1,9 @@
 from cgi import test
+import imp
+# from msilib import schema
+# from multiprocessing import synchronize
 from pyexpat import model
+# from turtle import pos
 from fastapi import FastAPI, Response,status, HTTPException, Depends 
 from models import User, Gender, Role
 from typing import List, Optional
@@ -11,8 +15,10 @@ import psycopg2
 from sqlalchemy.orm import Session 
 from psycopg2.extras import RealDictCursor
 import time
-from . import  models
+from . import  models, schemas, utils
 from .database import engine, get_db
+
+from .routers import user,post,auth
 
 
 models.Base.metadata.create_all(bind=engine)
@@ -22,25 +28,32 @@ app = FastAPI()
 
 
 
-class Post(BaseModel): 
-    title: str
-    content: str
+app.include_router(user.router)
+app.include_router(post.router)
+app.include_router(auth.router) 
+
+
+
+# MOVED TO SCHEMAS FILE
+# class Post(BaseModel): 
+#     title: str
+#     content: str
 
 # RAW CONNECTION TO DATABASE
-while True:
-    try:
-        conn = psycopg2.connect(host='localhost',database='fast-api',user='postgres',password='1234',cursor_factory=RealDictCursor)
-        cursor = conn.cursor()
-        print("Connected to the database")
-        break
-    except (Exception, psycopg2.Error) as error :
-        print ("Error while connecting to PostgreSQL", error) 
-        time.sleep(2)
+# while True:
+#     try:
+#         conn = psycopg2.connect(host='localhost',database='fast_test',user='postgres',password='1234',cursor_factory=RealDictCursor)
+#         cursor = conn.cursor()
+#         print("Connected to the database")
+#         break
+#     except (Exception, psycopg2.Error) as error :
+#         print ("Error while connecting to PostgreSQL", error) 
+#         time.sleep(2)
 
 
 
 @app.post("/createpost")
-def create_post(post:Post):
+def create_post(post:schemas.PostCreate):
     print(post, type(post)) 
     p = post.dict()
     print(type(p))
@@ -55,104 +68,6 @@ def get_sqlalchemy(db: Session = Depends(get_db)):
 
 
 mposts = [{"id":1,"title":"title1","content":"content1"},{"id":2,"title":"title2","content":"content2"}]
-
-@app.get("/posts")
-def get_posts():
-    cursor.execute("""SELECT * FROM posts """)
-    posts = cursor.fetchall()
-    print(posts)
-    return {"posts":posts}
-
-@app.post("/posts",status_code=status.HTTP_201_CREATED)
-def create_post(post:Post, db: Session = Depends(get_db)):
-    print(post, type(post),'8'*100)
-    # new_post = models.Post(title=post.title, content=post.content)
-    new_post = models.Post(**post.dict())
-    print(new_post, type(new_post),'--'*100)
-    db.add(new_post)
-    db.commit()
-    db.refresh(new_post)
-    print('JAKA JAKA',new_post)
-    # cursor.execute("""INSERT INTO posts (title,content) VALUES (%s,%s) RETURNING * """,(post.title,post.content))
-    # new_post = cursor.fetchone()
-    # conn.commit()
-
-    # post_dict = post.dict()
-    # post_dict['id'] = randrange(1,100)
-    # mposts.append(post_dict)
-    return {"posts":new_post} 
-
-
-def find_post(id): 
-    for post in mposts:
-        if post['id'] == id:
-            print(post)
-            return post
-    return None
-
-@app.get("/posts/{id}")
-def get_post(id: int, response: Response, db: Session = Depends(get_db)):
-
-    post = db.query(models.Post).filter(models.Post.id == id).first()  
-    # cursor.execute("""SELECT * FROM posts WHERE id = %s""",(str(id),))
-    # post = cursor.fetchone()
-
-    # if post is None:
-    #     raise HTTPException(status_code=404, detail=f"Post not found for id {id}")
-    #     # response.status_code = status.HTTP_404_NOT_FOUND
-    #     # return {"detail":f"post not found for id {id}"} 
-    # print(post,'HELLPO')
-    return {"posts":id,"post":post}
-
-@app.get("/latestpost")
-def get_latest_post(): 
-    lpost = mposts[-1]
-    print(lpost)
-    return {"posts":lpost}
-
-
-def find_index(id):
-    for p in mposts:
-        if p['id'] == id:
-            print(p,mposts.index(p))
-            return mposts.index(p)
-
-@app.delete("/posts/{id}",status_code=status.HTTP_204_NO_CONTENT)
-def delete_post(id: int, response: Response, db: Session = Depends(get_db)): 
-    
-    post = db.query(models.Post).filter(models.Post.id == id).first()  
-    
-    if post.first() == None:
-    # if deleted is None:
-        raise HTTPException(status_code=404, detail=f"Post not found for id {id}")
-
-
-    # cursor.execute("""DELETE FROM posts WHERE id = %s returning * """,(str(id),))
-    # deleted = cursor.fetchone()
-    # conn.commit() 
-
-    
-    # return {"posts":mposts,"detail":f"post {id} deleted"}
-    return Response(status_code=status.HTTP_204_NO_CONTENT) 
-
-
-@app.put("/posts/{id}",status_code=status.HTTP_200_OK) 
-def update_post(id: int, post: Post):
-    cursor.execute("""UPDATE posts SET title = %s, content = %s WHERE id = %s returning * """,(post.title,post.content,str(id))) 
-    updated = cursor.fetchone()
-    conn.commit()
-    if updated == None:
-        raise HTTPException(status_code=404, detail=f"Post not found for id {id}")
-    # mposts[index] = post.dict()
-    # post_dict = post.dict()
-    # post_dict['id'] = id
-    # print(post_dict,'*'*30,post_dict['id'])
-    # mposts[index] = post_dict
-    return {"posts":updated}
-
-
-
-
 
 
 db: List[User] = [
@@ -182,3 +97,4 @@ async def fetch():
 async def regis(user:User):
     db.append(user)
     return {"id":user.id}
+
